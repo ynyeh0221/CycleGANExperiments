@@ -616,8 +616,8 @@ def generate_images(G_AB, G_BA, test_A_path, test_B_path, num_images=5):
 if __name__ == "__main__":
     try:
         # Define domains from CIFAR-10 classes
-        domain_a = 'airplane'  # First domain
-        domain_b = 'bird'  # Second domain
+        domain_a = 'horse'  # First domain
+        domain_b = 'deer'  # Second domain
 
         print(f"Setting up CycleGAN for {domain_a} ↔ {domain_b} style transfer")
 
