@@ -2,7 +2,7 @@
 
 A comprehensive framework for exploring CycleGAN-based unpaired image-to-image translation across multiple domains and datasets.
 
-![CycleGAN Example](https://github.com/yourusername/CycleGANExperiments/assets/yourusername/example.png)
+![CycleGAN Example](https://github.com/ynyeh0221/CycleGANExperiments/blob/main/v1/output/images/epoch_1000_batch_60.png)
 
 ## Overview
 
