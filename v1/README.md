@@ -98,7 +98,7 @@ After training, you can find:
 - Original and translated images in the `results/` directory
 - Visual comparison of translation quality and cycle consistency
 
-| | |
+| | Example Result|
 |-----------------|---------------|
 | Epoch 100 | ![](https://github.com/ynyeh0221/CycleGANExperiments/blob/main/v1/output/images/epoch_100_batch_60.png) |
 | Epoch 300 | ![](https://github.com/ynyeh0221/CycleGANExperiments/blob/main/v1/output/images/epoch_300_batch_60.png) |
