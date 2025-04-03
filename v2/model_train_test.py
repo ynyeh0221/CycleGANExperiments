@@ -27,35 +27,35 @@ device = torch.device(
     "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-# STL-10 class labels
-stl10_classes = ['airplane', 'bird', 'car', 'cat', 'deer', 'dog', 'horse', 'monkey', 'ship', 'truck']
+# Class labels in CIFAR-10
+cifar10_classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 
-# Create dataset directories for STL-10
-def prepare_stl10_domains(root='/content/drive/MyDrive/CycleGAN/datasets', domain_a='horse', domain_b='deer'):
+# Create dataset directories
+def prepare_cifar10_domains(root='/content/drive/MyDrive/CycleGAN_VGG/datasets', domain_a='horse', domain_b='deer'):
     """
-    Prepares STL-10 dataset for CycleGAN by selecting two domains.
+    Prepares CIFAR-10 dataset for CycleGAN by selecting two domains.
 
     Args:
         root (str): Root directory for datasets
-        domain_a (str): First domain (must be one of STL-10 classes)
-        domain_b (str): Second domain (must be one of STL-10 classes)
+        domain_a (str): First domain (must be one of CIFAR-10 classes)
+        domain_b (str): Second domain (must be one of CIFAR-10 classes)
 
     Returns:
         dict: Paths to domain directories
     """
-    if domain_a not in stl10_classes or domain_b not in stl10_classes:
-        raise ValueError(f"Domains must be one of {stl10_classes}")
+    if domain_a not in cifar10_classes or domain_b not in cifar10_classes:
+        raise ValueError(f"Domains must be one of {cifar10_classes}")
 
     # Create necessary directories
-    domain_a_idx = stl10_classes.index(domain_a)
-    domain_b_idx = stl10_classes.index(domain_b)
+    domain_a_idx = cifar10_classes.index(domain_a)
+    domain_b_idx = cifar10_classes.index(domain_b)
 
     os.makedirs(root, exist_ok=True)
 
     # Create domain directories
-    domain_a_dir = os.path.join(root, f'stl10_{domain_a}')
-    domain_b_dir = os.path.join(root, f'stl10_{domain_b}')
+    domain_a_dir = os.path.join(root, f'cifar10_{domain_a}')
+    domain_b_dir = os.path.join(root, f'cifar10_{domain_b}')
 
     train_a_dir = os.path.join(domain_a_dir, 'trainA')
     test_a_dir = os.path.join(domain_a_dir, 'testA')
@@ -67,12 +67,12 @@ def prepare_stl10_domains(root='/content/drive/MyDrive/CycleGAN/datasets', domai
 
     print(f"Created domain directories for {domain_a} and {domain_b}")
 
-    # Download STL-10 dataset
-    print("Downloading STL-10 dataset (if not already downloaded)...")
+    # Download CIFAR-10 dataset
+    print("Downloading CIFAR-10 dataset (if not already downloaded)...")
     transform = transforms.Compose([transforms.ToTensor()])
 
-    train_dataset = datasets.STL10(root=root, split='train', download=True, transform=transform)
-    test_dataset = datasets.STL10(root=root, split='test', download=True, transform=transform)
+    train_dataset = datasets.CIFAR10(root=root, train=True, download=True, transform=transform)
+    test_dataset = datasets.CIFAR10(root=root, train=False, download=True, transform=transform)
 
     # Extract images for domain A (train)
     domain_a_indices_train = [i for i, (_, label) in enumerate(train_dataset) if label == domain_a_idx]
@@ -145,7 +145,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         if self.size == 0:
-            img = Image.new('RGB', (96, 96), color='black')
+            img = Image.new('RGB', (32, 32), color='black')
             if self.transform:
                 img = self.transform(img)
             return img
@@ -158,7 +158,7 @@ class ImageDataset(Dataset):
             return img
         except Exception as e:
             print(f"Error loading image {img_path}: {e}")
-            img = Image.new('RGB', (96, 96), color='black')
+            img = Image.new('RGB', (32, 32), color='black')
             if self.transform:
                 img = self.transform(img)
             return img
@@ -324,6 +324,7 @@ class VGGFeatureExtractor(nn.Module):
         # Use pretrained VGG16 and extract features up to layer 16 (e.g., relu3_3)
         vgg16 = models.vgg16(pretrained=True)
         self.features = nn.Sequential(*list(vgg16.features)[:16]).eval()
+        # Freeze parameters
         for param in self.features.parameters():
             param.requires_grad = False
 
@@ -340,7 +341,7 @@ class VGGFeatureExtractor(nn.Module):
 # Modified training function including perceptual cycle loss
 def train_cyclegan(domain_a_dir, domain_b_dir, epochs=100, batch_size=4, lr=0.0002, decay_epoch=50,
                    sample_interval=100):
-    # Data transforms; note STL-10 images are 96x96 so we use them as-is
+    # Data transforms
     transforms_ = [
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
@@ -362,7 +363,7 @@ def train_cyclegan(domain_a_dir, domain_b_dir, epochs=100, batch_size=4, lr=0.00
     dataloader_A = DataLoader(trainA, batch_size=batch_size, shuffle=True, num_workers=4)
     dataloader_B = DataLoader(trainB, batch_size=batch_size, shuffle=True, num_workers=4)
 
-    os.makedirs("/content/drive/MyDrive/CycleGAN/samples", exist_ok=True)
+    os.makedirs("/content/drive/MyDrive/CycleGAN_VGG/samples", exist_ok=True)
 
     # Loss criteria
     criterion_GAN = nn.MSELoss()
@@ -383,7 +384,8 @@ def train_cyclegan(domain_a_dir, domain_b_dir, epochs=100, batch_size=4, lr=0.00
     # Instantiate VGG extractor for perceptual loss
     vgg_extractor = VGGFeatureExtractor().to(device)
     vgg_extractor.eval()
-    lambda_perceptual = 0.5  # Weight for perceptual loss
+    # Weight for perceptual loss
+    lambda_perceptual = 0.5
 
     # Optimizers
     optimizer_G = optim.Adam(
@@ -497,7 +499,7 @@ def train_cyclegan(domain_a_dir, domain_b_dir, epochs=100, batch_size=4, lr=0.00
             if i % sample_interval == 0 and len(testA) > 0 and len(testB) > 0:
                 G_AB.eval()
                 G_BA.eval()
-                os.makedirs("/content/drive/MyDrive/CycleGAN/images", exist_ok=True)
+                os.makedirs("/content/drive/MyDrive/CycleGAN_VGG/images", exist_ok=True)
 
                 def denorm(x):
                     return (x * 0.5 + 0.5).clamp(0, 1)
@@ -528,7 +530,7 @@ def train_cyclegan(domain_a_dir, domain_b_dir, epochs=100, batch_size=4, lr=0.00
                 axs[1, 2].set_title("Cycle B->A->B")
                 axs[1, 2].axis("off")
                 plt.tight_layout()
-                plt.savefig(f"/content/drive/MyDrive/CycleGAN/images/epoch_{epoch + 1}_batch_{i}.png")
+                plt.savefig(f"/content/drive/MyDrive/CycleGAN_VGG/images/epoch_{epoch + 1}_batch_{i}.png")
                 plt.close()
 
         lr_scheduler_G.step()
@@ -536,11 +538,11 @@ def train_cyclegan(domain_a_dir, domain_b_dir, epochs=100, batch_size=4, lr=0.00
         lr_scheduler_D_B.step()
 
         if (epoch + 1) % 50 == 0:
-            os.makedirs("/content/drive/MyDrive/CycleGAN/checkpoints", exist_ok=True)
-            torch.save(G_AB.state_dict(), f"/content/drive/MyDrive/CycleGAN/checkpoints/G_AB_epoch_{epoch + 1}.pth")
-            torch.save(G_BA.state_dict(), f"/content/drive/MyDrive/CycleGAN/checkpoints/G_BA_epoch_{epoch + 1}.pth")
-            torch.save(D_A.state_dict(), f"/content/drive/MyDrive/CycleGAN/checkpoints/D_A_epoch_{epoch + 1}.pth")
-            torch.save(D_B.state_dict(), f"/content/drive/MyDrive/CycleGAN/checkpoints/D_B_epoch_{epoch + 1}.pth")
+            os.makedirs("/content/drive/MyDrive/CycleGAN_VGG/checkpoints", exist_ok=True)
+            torch.save(G_AB.state_dict(), f"/content/drive/MyDrive/CycleGAN_VGG/checkpoints/G_AB_epoch_{epoch + 1}.pth")
+            torch.save(G_BA.state_dict(), f"/content/drive/MyDrive/CycleGAN_VGG/checkpoints/G_BA_epoch_{epoch + 1}.pth")
+            torch.save(D_A.state_dict(), f"/content/drive/MyDrive/CycleGAN_VGG/checkpoints/D_A_epoch_{epoch + 1}.pth")
+            torch.save(D_B.state_dict(), f"/content/drive/MyDrive/CycleGAN_VGG/checkpoints/D_B_epoch_{epoch + 1}.pth")
 
     return G_AB, G_BA
 
@@ -559,38 +561,38 @@ def generate_images(G_AB, G_BA, test_A_path, test_B_path, num_images=5):
         print("Warning: Test datasets are empty. Cannot generate images.")
         return
 
-    os.makedirs("/content/drive/MyDrive/CycleGAN/results", exist_ok=True)
+    os.makedirs("/content/drive/MyDrive/CycleGAN_VGG/results", exist_ok=True)
 
     for i in range(min(num_images, len(test_A))):
         real_A = test_A[i].unsqueeze(0).to(device)
         fake_B = G_AB(real_A)
         real_A = (real_A * 0.5 + 0.5).clamp(0, 1)
         fake_B = (fake_B * 0.5 + 0.5).clamp(0, 1)
-        utils.save_image(real_A, f"/content/drive/MyDrive/CycleGAN/results/real_A_{i}.png")
-        utils.save_image(fake_B, f"/content/drive/MyDrive/CycleGAN/results/fake_B_{i}.png")
+        utils.save_image(real_A, f"/content/drive/MyDrive/CycleGAN_VGG/results/real_A_{i}.png")
+        utils.save_image(fake_B, f"/content/drive/MyDrive/CycleGAN_VGG/results/fake_B_{i}.png")
 
     for i in range(min(num_images, len(test_B))):
         real_B = test_B[i].unsqueeze(0).to(device)
         fake_A = G_BA(real_B)
         real_B = (real_B * 0.5 + 0.5).clamp(0, 1)
         fake_A = (fake_A * 0.5 + 0.5).clamp(0, 1)
-        utils.save_image(real_B, f"/content/drive/MyDrive/CycleGAN/results/real_B_{i}.png")
-        utils.save_image(fake_A, f"/content/drive/MyDrive/CycleGAN/results/fake_A_{i}.png")
+        utils.save_image(real_B, f"/content/drive/MyDrive/CycleGAN_VGG/results/real_B_{i}.png")
+        utils.save_image(fake_A, f"/content/drive/MyDrive/CycleGAN_VGG/results/fake_A_{i}.png")
 
 
 # Main execution
 if __name__ == "__main__":
     try:
-        # Define domains from STL-10 classes
+        # Define domains from CIFAR-10 classes
         domain_a = 'horse'
         domain_b = 'deer'
-        print(f"Setting up CycleGAN for {domain_a} ↔ {domain_b} style transfer using STL-10")
-        domain_dirs = prepare_stl10_domains(domain_a=domain_a, domain_b=domain_b)
+        print(f"Setting up CycleGAN for {domain_a} ↔ {domain_b} style transfer")
+        domain_dirs = prepare_cifar10_domains(domain_a=domain_a, domain_b=domain_b)
         G_AB, G_BA = train_cyclegan(
             domain_dirs['domain_a_dir'],
             domain_dirs['domain_b_dir'],
-            epochs=1000,
-            batch_size=16,
+            epochs=5000,
+            batch_size=64,
             lr=0.0002,
             decay_epoch=50,
             sample_interval=50
@@ -600,3 +602,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An error occurred: {e}")
         print("Please check the script and dataset, then try again.")
+
